@@ -53,7 +53,9 @@
     </div>
     <div class="main-content" data-bind="visible: joinedRoom() != null">
         <div class="header">
-            <h5 id="joinedRoom" data-bind="text: joinedRoom()?.name()">Lobby</h5>
+            <h5 id="joinedRoom" data-bind="text: joinedRoom()?.name()">Ziad</h5>
+            <div id="typingIndicator" style="color: black" ></div>
+
             <div class="room-actions" data-bind="visible: showRoomActions()">
                 <button type="button" class="btn btn-link text-secondary px-1" data-bs-toggle="modal" data-bs-target="#rename-room-modal">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-3"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -85,6 +87,9 @@
                                 <ul class="dropdown-menu">
                                     <li>
                                         <a class="dropdown-item" href="#" data-bind="attr: { 'data-messageId': id }" data-bs-toggle="modal" data-bs-target="#remove-message-modal">Delete</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" data-bind="attr: { 'data-messageId': id }, click: $root.showUpdateModal">Update</a>
                                     </li>
                                 </ul>
                             </div>
@@ -230,6 +235,26 @@
     </div>
 </div>
 
+<div class="modal fade" id="update-message-modal" tabindex="-1" aria-labelledby="updateMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateMessageModalLabel">Update Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="updateMessageId" />
+                <textarea class="form-control" id="updateMessageContent" data-bind="value: messageToUpdate().content"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-sm btn-primary" id="saveUpdatedMessage" data-bind="click: $root.saveUpdatedMessage">Save changes</button>
+                <input type="hidden" class="form-control" id="itemToUpdate" />
+
+            </div>
+        </div>
+    </div>
+</div>
 @section Scripts {
 <script src="~/lib/knockout/knockout-latest.min.js"></script>
 <script src="~/lib/microsoft-signalr/signalr.min.js"></script>

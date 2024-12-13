@@ -14,7 +14,7 @@ namespace Chat.Web.Helpers
         public FileValidator(IConfiguration configuration)
         {
             _configuration = configuration;
-            _fileSizeLimit = _configuration.GetValue("FileUpload:FileSizeLimitInBytes", 1 * 1024 * 1024); // 1MB
+            _fileSizeLimit = _configuration.GetValue("FileUpload:FileSizeLimitInBytes", 1 * 1024 * 1024); 
             _allowedExtensions = _configuration.GetValue("FileUpload:AllowedExtensions", ".jpg,.jpeg,.png").Split(",");
         }
 

@@ -1,5 +1,6 @@
 ﻿$(document).ready(function () {
     var connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+    var typingTimeout;
 
     connection.start().then(function () {
         console.log('SignalR Started...')
@@ -14,6 +15,13 @@
         var message = new ChatMessage(messageView.id, messageView.content, messageView.timestamp, messageView.fromUserName, messageView.fromFullName, isMine, messageView.avatar);
         viewModel.chatMessages.push(message);
         $(".messages-container").animate({ scrollTop: $(".messages-container")[0].scrollHeight }, 1000);
+    });
+    connection.on("updateMessage", function (updatedMessageView) {
+        var message = viewModel.chatMessages().find(m => m.id() === updatedMessageView.id);
+        if (message) {
+            message.content(updatedMessageView.content);
+            message.timestamp(updatedMessageView.timestamp);
+        }
     });
 
     connection.on("getProfileInfo", function (user) {
@@ -55,10 +63,28 @@
             viewModel.joinedRoom(null);
         }
         else {
-            // Join to the first room from the list
             viewModel.joinRoom(viewModel.chatRooms()[0]);
         }
     });
+    connection.on("typing", function (user) {
+        console.log(user.fullName + " is typing...");
+        var typingElement = document.getElementById("typingIndicator");
+        typingElement.textContent = user.fullName + " is typing...";
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(function () {
+            typingElement.textContent = "";
+        }, 1500); 
+    });
+
+
+
+    connection.on("stopTyping", function () {
+        console.log("Stop typing detected");
+        $("#typingIndicator").text("");
+    });
+
+
+
 
     function AppViewModel() {
         var self = this;
@@ -71,7 +97,67 @@
         self.serverInfoMessage = ko.observable("");
         self.myProfile = ko.observable();
         self.isLoading = ko.observable(true);
+        self.messageToUpdate = ko.observable();
 
+        $("#message-input").on("input", function () {
+            console.log("Input detected");
+            notifyTyping();
+        });
+        function notifyTyping() {
+            if (viewModel.joinedRoom()) {
+                console.log("Notify typing");
+                clearTimeout(typingTimeout);
+                connection.invoke("Typing", viewModel.joinedRoom().name())
+                    .catch(function (err) {
+                        console.error("Typing error: " + err);
+                    });
+                typingTimeout = setTimeout(stopTyping, 3000);
+            }
+        }
+
+        function stopTyping() {
+            if (viewModel.joinedRoom()) {
+                connection.invoke("StopTyping", viewModel.joinedRoom().name())
+                    .catch(function (err) {
+                        console.error("Stop typing error: " + err);
+                    });
+            }
+        }
+
+        self.showUpdateModal = function(message) {
+            console.log('Showing update modal for message:', message);
+            self.messageToUpdate(message);
+            $('#update-message-modal').modal('show');
+        };
+
+        document.getElementById('saveUpdatedMessage').onclick = function () {
+            var updatedContent = document.getElementById('updateMessageContent').value;
+            var messageId = viewModel.messageToUpdate().id();
+            console.log('Updating message:',updatedContent, messageId);
+            if (!updatedContent.trim()) {
+                alert('Message cannot be empty');
+                return;
+            }
+
+            fetch('/api/Messages/' + messageId, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ newMessage: updatedContent })
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(text);
+                        });
+                    }
+                    return response.json();
+                }).catch(error => {
+                    console.error('Error updating message:', error);
+                });
+        };
         self.showAvatar = ko.computed(function () {
             return self.isLoading() == false && self.myProfile().avatar() != null;
         });
@@ -83,6 +169,7 @@
         self.onEnter = function (d, e) {
             if (e.keyCode === 13) {
                 self.sendNewMessage();
+                return false;
             }
             return true;
         }
@@ -111,7 +198,12 @@
 
             self.message("");
         }
-
+        document.getElementById('message-input').addEventListener('keydown', function (e) {
+            if (e.keyCode === 13) {
+                sendNewMessage();
+                e.preventDefault();
+            }
+        });
         document.getElementById('btn-send-message').addEventListener('click', sendNewMessage);
 
         async function sendNewMessage() {
@@ -141,7 +233,7 @@
 
                 const result = await response.json();
                 console.log('Message sent successfully:', result);
-                messageInput.value = ''; // Clear the input field
+                messageInput.value = '';
             } catch (error) {
                 console.error('Error sending message:', error);
             }
@@ -358,10 +450,8 @@
             var now = new Date();
             var diff = Math.round((date.getTime() - now.getTime()) / (1000 * 3600 * 24));
 
-            // Format date
             var { dateOnly, timeOnly } = formatDate(date);
 
-            // Generate relative datetime
             if (diff == 0)
                 return `Today, ${timeOnly}`;
             if (diff == -1)
@@ -401,7 +491,6 @@
         if (minutes < 10)
             minutes = "0" + minutes;
 
-        // Result
         var dateOnly = `${day}/${month}/${year}`;
         var timeOnly = `${hours}:${minutes} ${d}`;
         var fullDateTime = `${dateOnly} ${timeOnly}`;

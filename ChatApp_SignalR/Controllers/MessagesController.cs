@@ -84,13 +84,45 @@ namespace Chat.Web.Controllers
             _context.Messages.Add(msg);
             await _context.SaveChangesAsync();
 
-            // Broadcast the message
             var createdMessage = _mapper.Map<Message, MessageViewModel>(msg);
             await _hubContext.Clients.Group(room.Name).SendAsync("newMessage", createdMessage);
 
             return CreatedAtAction(nameof(Get), new { id = msg.Id }, createdMessage);
         }
 
+        [HttpPut("{id}")]
+        
+        public async Task<IActionResult> Update(int id, [FromBody]UpdateMessageViewModel updateMessageViewModel)
+        {
+            
+            var message = await _context.Messages.FindAsync(id);
+            if (message == null)
+                return NotFound();
+
+            message.Content = updateMessageViewModel.newMessage;
+            message.Timestamp = DateTime.Now;
+            await _context.SaveChangesAsync();
+            
+            var user = _context.Users.FirstOrDefault(u => u.UserName == User.Identity.Name);
+            var Room = _context.Rooms.FirstOrDefault(r => r.Id == message.ToRoomId);
+            var updatedMessageViewModel = new MessageViewModel
+            {
+                Room = Room.Name,
+                Id = message.Id,
+                Content = message.Content,
+                FromUserName = user.UserName,
+                FromFullName = user.FullName,
+                Avatar = user.Avatar,
+                Timestamp = message.Timestamp
+            };
+                
+           
+            
+            
+            await _hubContext.Clients.Group(Room.Name).SendAsync("updateMessage", updatedMessageViewModel);
+
+            return Ok(updatedMessageViewModel);
+        }
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

@@ -31,12 +31,10 @@ namespace Chat.Web.Hubs
         {
             if (_ConnectionsMap.TryGetValue(receiverName, out string userId))
             {
-                // Who is the sender;
                 var sender = _Connections.Where(u => u.UserName == IdentityName).First();
 
                 if (!string.IsNullOrEmpty(message.Trim()))
                 {
-                    // Build the message
                     var messageViewModel = new MessageViewModel()
                     {
                         Content = Regex.Replace(message, @"<.*?>", string.Empty),
@@ -47,13 +45,15 @@ namespace Chat.Web.Hubs
                         Timestamp = DateTime.Now
                     };
 
-                    // Send the message
                     await Clients.Client(userId).SendAsync("newMessage", messageViewModel);
                     await Clients.Caller.SendAsync("newMessage", messageViewModel);
                 }
             }
         }
-
+        public async Task UpdateMessage(MessageViewModel updatedMessage)
+        {
+            await Clients.Group(updatedMessage.Room).SendAsync("updateMessage", updatedMessage);
+        }
         public async Task Join(string roomName)
         {
             try
@@ -61,16 +61,13 @@ namespace Chat.Web.Hubs
                 var user = _Connections.Where(u => u.UserName == IdentityName).FirstOrDefault();
                 if (user != null && user.CurrentRoom != roomName)
                 {
-                    // Remove user from others list
                     if (!string.IsNullOrEmpty(user.CurrentRoom))
                         await Clients.OthersInGroup(user.CurrentRoom).SendAsync("removeUser", user);
 
-                    // Join to new chat room
                     await Leave(user.CurrentRoom);
                     await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
                     user.CurrentRoom = roomName;
 
-                    // Tell others to update their list of users
                     await Clients.OthersInGroup(roomName).SendAsync("addUser", user);
                 }
             }
@@ -121,10 +118,8 @@ namespace Chat.Web.Hubs
                 var user = _Connections.Where(u => u.UserName == IdentityName).First();
                 _Connections.Remove(user);
 
-                // Tell other users to remove you from their list
                 Clients.OthersInGroup(user.CurrentRoom).SendAsync("removeUser", user);
 
-                // Remove mapping
                 _ConnectionsMap.Remove(user.UserName);
             }
             catch (Exception ex)
@@ -155,6 +150,23 @@ namespace Chat.Web.Hubs
             return "Web";
         }
 
+        public async Task Typing(string roomName)
+        {
+            var user = _Connections.Where(u => u.UserName == IdentityName).FirstOrDefault();
+            if (user != null)
+            {
+                await Clients.OthersInGroup(roomName).SendAsync("typing", user);
+            }
+        }
+
+        public async Task StopTyping(string roomName)
+        {
+            var user = _Connections.Where(u => u.UserName == IdentityName).FirstOrDefault();
+            if (user != null)
+            {
+                await Clients.OthersInGroup(roomName).SendAsync("stopTyping", user);
+            }
+        }
     }
 
    

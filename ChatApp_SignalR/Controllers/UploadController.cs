@@ -90,7 +90,6 @@ namespace Chat.Web.Controllers
                 await _context.Messages.AddAsync(message);
                 await _context.SaveChangesAsync();
 
-                // Send image-message to group
                 var messageViewModel = _mapper.Map<Message, MessageViewModel>(message);
                 await _hubContext.Clients.Group(room.Name).SendAsync("newMessage", messageViewModel);
 
